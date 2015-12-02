@@ -137,7 +137,8 @@ public class Test1
 				if (!v.contains(s))
 						v.add(s);
 				
-				for (Map.Entry<IPointer, List <ISynsetID>> entry : relatedMap.entrySet()) {
+				for (Map.Entry<IPointer, List <ISynsetID>> entry : relatedMap.entrySet()) 
+				{
 					IPointer key = entry.getKey();
 					List <ISynsetID> list = entry.getValue();
 					
@@ -147,7 +148,6 @@ public class Test1
 						 advancedHolisticallyExploreWord(sy, --level, v);
 						 level++;
 					}
-				    
 				}
 			}
 		}

@@ -1,7 +1,7 @@
 /* 
  * Test2.java
- * Contains two usefull functions: the first one explores the DBpedia TBOX classes hierarchy starting from a synset passed by parameter 
- * while the second one retrieves all the related of given synset digging into the level passed as innput. 
+ * Contains useful functions to navigate the DBpedia Schema ontology and store the explored class local names in a vector
+ * passed as input parameter
  * 
  * 
  * Author: Enrico G. Caldarola (enricogiacinto.caldarola@unina.it)
@@ -19,7 +19,6 @@ import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.shared.JenaException;
 import org.apache.jena.util.FileManager;
 import org.apache.jena.util.iterator.ExtendedIterator;
-import org.apache.jena.vocabulary.OWL;
 
 
 public class Test2 
@@ -31,43 +30,26 @@ public class Test2
 		OntModel ontoModel = getOntologyModel(DBpediaTBOXFile);
 		ontoModel.setStrictMode(false);
 		ExtendedIterator<OntClass> classesIter = ontoModel. listNamedClasses();
-
-		Vector<String> v;
 		
 		while(classesIter.hasNext())
 		{
 			OntClass c = classesIter.next();
+			Vector<String> v = new Vector<String>();
 			
-			v = exploreSuperClasses(c, Integer.MAX_VALUE);
-			//v = exploreSubClasses(c, Integer.MAX_VALUE);
-			//v = holisticallyExploreClass(c, 1);
-			//v = exploreAllSuperClasses(c);
+			exploreSuperClasses(c, 10, v);
+			//exploreSubClasses(c, Integer.MAX_VALUE, v);
+			//exploreEquivClasses(c, Integer.MAX_VALUE, v);
+			//holisticallyExploreClass(c, Integer.MAX_VALUE, v);
 			
 			System.out.println(c.getLocalName() + " --> " + v);
 		}
 	}
 	
-	
-	static Vector<String> exploreAllSuperClasses(OntClass c)
+	static void exploreSuperClasses(OntClass c, int level, Vector<String> v)
 	{
-		Vector<String> v = new Vector<String>();
-		
-		if (c.hasSuperClass())
-		{
-			ExtendedIterator<OntClass> superClassIter = c.listSuperClasses();
-			while (superClassIter.hasNext())
-			{
-				v.add(superClassIter.next().getLocalName());
-			}
-			
-		}
-		
-		return v;
-	}
-	
-	static Vector<String> exploreSuperClasses(OntClass c, int level)
-	{
-		Vector<String> v = new Vector<String>();
+		String classLocal = c.getLocalName();
+		if (!v.contains(classLocal))
+			v.add(classLocal);
 		
 		if (level > 0)
 		{
@@ -78,66 +60,70 @@ public class Test2
 				while (superClassIter.hasNext())
 				{
 					OntClass superClass = superClassIter.next();
-					v.add(superClass.getLocalName());
-					v = exploreSuperClasses(superClass, --level);
-					
+					exploreSuperClasses(superClass, --level, v);
 				}
+			}
+		}
+	}
+	
+	static void exploreSubClasses(OntClass c, int level, Vector<String> v)
+	{
+		String classLocal = c.getLocalName();
+		if (!v.contains(classLocal))
+			v.add(classLocal);
+		
+		if (level > 0)
+		{
+			if (c.hasSubClass())
+			{
+				ExtendedIterator<OntClass> subClassIter = c.listSubClasses(true);
 				
-				v.add(c.getLocalName());
+				while (subClassIter.hasNext())
+				{
+					OntClass nextClass = subClassIter.next();
+					exploreSubClasses(nextClass, --level, v);
+				}
 			}
-			else
-				v.add(OWL.Thing.getLocalName());
 		}
-		
-		return v;
 	}
 	
-	static Vector<String> exploreSubClasses(OntClass c, int level)
+	static void exploreEquivClasses(OntClass c, int level, Vector<String> v)
 	{
-		Vector<String> v = new Vector<String>();
+		String classLocal = c.getLocalName();
+		if (!v.contains(classLocal))
+			v.add(classLocal);
+		
+		if (level > 0)
+		{
+			ExtendedIterator<OntClass> equivClassIter = c.listEquivalentClasses();
+			while (equivClassIter.hasNext())
+			{
+				OntClass nextClass = equivClassIter.next();
+				exploreEquivClasses(nextClass, level, v);
+			}
+		}
+	}
+	
+	static void holisticallyExploreClass(OntClass c, int level, Vector<String> v)
+	{
+		String classLocal = c.getLocalName();
+		if (!v.contains(classLocal))
+			v.add(classLocal);
 		
 		if (level > 0)
 		{
 			if (c.hasSubClass())
 			{
-				OntClass subClass = c.getSubClass();
-				v = exploreSubClasses(subClass, --level);
-				v.add(c.getLocalName());
-			}
-		}
-		
-		return v;
-	}
-	
-	static Vector<String> holisticallyExploreClass(OntClass c, int level)
-	{
-		Vector<String> v = new Vector<String>();
-		
-		if (level > 0)
-		{
-			if (c.hasSubClass())
-			{
-				OntClass subClass = c.getSubClass();
-				v.add(subClass.getLocalName());
-				holisticallyExploreClass(subClass, --level);
+				exploreSubClasses(c, level, v);
 			}
 			
 			if (c.hasSuperClass())
 			{
-				OntClass superClass = c.getSuperClass();
-				v.add(superClass.getLocalName());
-				holisticallyExploreClass(superClass, --level);
+				exploreSuperClasses(c, level, v);
 			}
 			
-				OntClass equivClass = c.getEquivalentClass();
-				if (equivClass != null)
-				{
-					v.add(equivClass.getLocalName());
-					holisticallyExploreClass(equivClass, --level);
-				}
+			exploreEquivClasses(c, level, v);
 		}
-		
-		return v;
 	}
 	
 	public static OntModel getOntologyModel(String ontoFile)
@@ -149,15 +135,12 @@ public class Test2
 	        try 
 	        {
 	            ontoModel.read(in, null);
-	           
-	            
 	            System.out.println("Ontology " + ontoFile + " loaded.");
 	        } 
 	        catch (Exception e) 
 	        {
 	            e.printStackTrace();
 	        }
-	       
 	    } 
 	    catch (JenaException je) 
 	    {
@@ -168,7 +151,3 @@ public class Test2
 	    return ontoModel;
 	}
 }
-
-
-
-
