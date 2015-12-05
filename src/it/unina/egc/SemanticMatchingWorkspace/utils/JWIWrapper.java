@@ -1,4 +1,4 @@
-package it.unina.egc.SemanticMatchingWorkspace.core;
+package it.unina.egc.SemanticMatchingWorkspace.utils;
 
 import java.io.File;
 import java.io.IOException;

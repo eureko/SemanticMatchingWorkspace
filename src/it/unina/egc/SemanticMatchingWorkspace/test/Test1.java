@@ -9,13 +9,18 @@
 
 package it.unina.egc.SemanticMatchingWorkspace.test;
 
-import it.unina.egc.SemanticMatchingWorkspace.core.JWIWrapper;
+import it.unina.egc.SemanticMatchingWorkspace.utils.ComparableIWord;
+import it.unina.egc.SemanticMatchingWorkspace.utils.JWIWrapper;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.Vector;
 
 import edu.mit.jwi.item.IIndexWord;
@@ -37,7 +42,10 @@ public class Test1
 		{
 			jwiwrapper = new JWIWrapper();
 			Iterator<IIndexWord> wordIterator = jwiwrapper.dictionary.getIndexWordIterator(POS.NOUN);
+			Vector<Vector<String>> wordArray = new Vector<Vector<String>>();
 			
+			
+			int counter = 0;
 			while(wordIterator.hasNext()) 
 			{
 				IIndexWord indexWord = wordIterator.next();
@@ -47,15 +55,35 @@ public class Test1
 				{
 					IWord word = jwiwrapper.dictionary.getWord(wid);
 					Vector<String> v = new Vector<String>();
-					exploreWord(word.getSynset(), Pointer.HYPERNYM, Integer.MAX_VALUE, v);
-					//holisticallyExploreWord(word.getSynset(), 2, v);
-					//advancedHolisticallyExploreWord(word.getSynset(), 3, v);
-					System.out.println(word.getLemma() + " --> " + v);
+					
+					//exploreWord(word.getSynset(), Pointer.HYPONYM, Integer.MAX_VALUE, v);
+					holisticallyExploreWord(word.getSynset(), 3, v);
+					//advancedHolisticallyExploreWord(word.getSynset(), Integer.MAX_VALUE, v);
+					//exploreHyperHypo(word.getSynset(), Integer.MAX_VALUE, v);
+					//System.out.println(word.getLemma() + " --> " + v);
+					
+					wordArray.add(v);
+					
+					if (((counter++)%100)==0)
+						System.out.println("Read " + counter + " words.");
 					
 					/*if (word.getLemma().compareTo("anjou")==0)
 						System.exit(0);*/
 				}
 			}
+			
+			//Serialize wordMap
+			
+			wordArray.trimToSize();
+			
+		   ObjectOutputStream oos = new ObjectOutputStream( 
+                   new FileOutputStream(new File("export/WordNetLexicalChainsHolisticLevel3.obj")));
+
+			oos.writeObject(wordArray);
+			// close the writing.
+			oos.close();
+			
+			System.out.println("export/WordNetLexicalChainsHolisticLevel3.obj serialized");
 		} 
 		catch (IOException e) 
 		{
@@ -98,7 +126,7 @@ public class Test1
 		}
 	}
 	
-	static Vector<String> holisticallyExploreWord(ISynset synset, int level, Vector<String> v)
+	static void holisticallyExploreWord(ISynset synset, int level, Vector<String> v)
 	{
 		if (level >= 0)
 		{
@@ -119,10 +147,9 @@ public class Test1
 				}
 			}
 		}
-		return v;
 	}
 	
-	static Vector<String> advancedHolisticallyExploreWord(ISynset synset, int level, Vector<String> v)
+	static void advancedHolisticallyExploreWord(ISynset synset, int level, Vector<String> v)
 	{
 		if (level >= 0)
 		{
@@ -151,7 +178,12 @@ public class Test1
 				}
 			}
 		}
-		return v;
+	}
+	
+	static void exploreHyperHypo(ISynset synset, int level, Vector<String> v)
+	{
+		exploreWord(synset, Pointer.HYPERNYM, level, v);
+		exploreWord(synset, Pointer.HYPONYM, level, v);
 	}
 	
 	static ArrayList<String> getArrayList(ISynset s)
@@ -166,4 +198,6 @@ public class Test1
 		
 		return arrayList;
 	}
+	
+	
 }

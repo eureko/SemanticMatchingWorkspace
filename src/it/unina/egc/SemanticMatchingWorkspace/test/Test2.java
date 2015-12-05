@@ -9,7 +9,10 @@
 
 package it.unina.egc.SemanticMatchingWorkspace.test;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.io.ObjectOutputStream;
 import java.util.Vector;
 
 import org.apache.jena.ontology.OntClass;
@@ -31,17 +34,45 @@ public class Test2
 		ontoModel.setStrictMode(false);
 		ExtendedIterator<OntClass> classesIter = ontoModel. listNamedClasses();
 		
+		Vector<Vector<String>> wordArray = new Vector<Vector<String>>();
+		
+		
+		int counter = 0;
 		while(classesIter.hasNext())
 		{
 			OntClass c = classesIter.next();
 			Vector<String> v = new Vector<String>();
 			
-			exploreSuperClasses(c, 10, v);
+			//exploreSuperClasses(c, Integer.MAX_VALUE, v);
 			//exploreSubClasses(c, Integer.MAX_VALUE, v);
 			//exploreEquivClasses(c, Integer.MAX_VALUE, v);
-			//holisticallyExploreClass(c, Integer.MAX_VALUE, v);
+			holisticallyExploreClass(c, Integer.MAX_VALUE, v);
 			
 			System.out.println(c.getLocalName() + " --> " + v);
+			
+			wordArray.add(v);
+			
+			
+			if (((counter++)%10)==0)
+				System.out.println("Read " + counter + " classes.");
+		}
+		
+		wordArray.trimToSize();
+		
+		try
+		{
+		   ObjectOutputStream oos = new ObjectOutputStream( 
+	            new FileOutputStream(new File("export/DBpediaLexicalChainsHolistic.obj")));
+	
+			oos.writeObject(wordArray);
+			// close the writing.
+			oos.close();
+			
+			System.out.println("export/DBpediaLexicalChainsHolistic.obj serialized");
+		}
+		catch(Exception ex)
+		{
+			ex.printStackTrace();
 		}
 	}
 	
