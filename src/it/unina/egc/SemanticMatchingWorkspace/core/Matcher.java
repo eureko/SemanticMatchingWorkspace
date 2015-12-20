@@ -1,21 +1,14 @@
 package it.unina.egc.SemanticMatchingWorkspace.core;
 
+import java.awt.SecondaryLoop;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.ObjectInputStream;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
 import java.util.TreeMap;
 import java.util.Vector;
 
-import org.apache.jena.ext.com.google.common.base.Equivalence;
-import org.apache.log4j.net.ZeroConfSupport;
-
-import edu.mit.jwi.item.IPointer;
-import edu.mit.jwi.item.ISynsetID;
-import edu.mit.jwi.item.IWordID;
+import org.apache.jena.base.Sys;
 
 public class Matcher 
 {
@@ -38,24 +31,27 @@ public class Matcher
 	static int lessThan100MatchingAverage = 0;
 	static int equal100MatchingAverage = 0;
 	
+	static double firstThreshold = 1.0;
+	static double JaccardThreshold = 1.0;
 	
-	
+	static String file1 = "export/WordNetWordLexicalChainsOfHypernims_level_0.obj";
+	static String file2 = "export/DBpediaClassNameLexicalChainsOfSuperClasses_level_0.obj";
 	
 	public static void main(String[] args) 
 	{
 		try
 		{
 			
-			FileWriter fileWriter = new FileWriter("export/alignments");
+			FileWriter statisticWirter = new FileWriter("export/matching001.txt");
 			
-				
+			//FileWriter fileWriter = new FileWriter("export/alignments");
 			
 			System.out.println("Reading serialized files....");
-			ObjectInputStream ois1 = new ObjectInputStream(                                 
-	                new FileInputStream(new File("export/WordNetLexicalChainsHyperMAX.obj"))) ;
+			ObjectInputStream ois1 = new ObjectInputStream(                                
+	                new FileInputStream(new File(file1))) ;
 			
 			ObjectInputStream ois2 = new ObjectInputStream(                                 
-	                new FileInputStream(new File("export/DBpediaLexicalChainsSuperClasses.obj"))) ;
+	                new FileInputStream(new File(file2))) ;
 	       
 			Vector<Vector<String>> wordArray1 = (Vector<Vector<String>>)ois1.readObject();
 			Vector<Vector<String>> wordArray2 = (Vector<Vector<String>>)ois2.readObject();
@@ -63,7 +59,10 @@ public class Matcher
 			System.out.println("Finished to read serialized files....");
 			
 			int counter = 0;
+			
+			long startTime = System.currentTimeMillis();
 	        
+			statisticWirter.write("Matching results for " + file1 + " matched to " + file2 + "\nThreshold: " + firstThreshold + ":" + JaccardThreshold + "\n");
 			for (Vector<String> v1 : wordArray1) 
 			{
 				for (Vector<String> v2 : wordArray2)
@@ -74,71 +73,84 @@ public class Matcher
 					v1.trimToSize();
 					v2.trimToSize();
 					
-					//double measure = computeSimilarity2(v1, v2);
+					double measure1 = compareMultiWords(indexStr1, regex1, indexStr2, regex2);
 					
-					if (compareMultiWords(indexStr1, regex1, indexStr2, regex2) == 1.0)
+					if (measure1 == firstThreshold)
 					{
-						double measure = computeJaccardSimilarity(v1, v2);
-						//System.out.println(indexStr1 + " = (" + measure + ") " + indexStr2);
-						fileWriter.write(indexStr1 + " = (" + measure + ") " + indexStr2 + "\n");
+						double measure2 = computeJaccardSimilarity(v1, v2);
+						
+						System.out.println(indexStr1 + " = (" + measure1 + ", " + measure2 + ") " + indexStr2);
 					
-						if (measure == 0.0)
+						if (measure2 == 0.0)
 							zeroMatchingAverage++;
-						else if (measure < 0.1 && measure > 0.0)
+						else if (measure2 < 0.1 && measure2 > 0.0)
 							lessThan10MatchingAverage++;
-						else if (measure < 0.2 && measure >= 0.1)
+						else if (measure2 < 0.2 && measure2 >= 0.1)
 							lessThan20MatchingAverage++;
-						else if (measure < 0.3 && measure >= 0.2)
+						else if (measure2 < 0.3 && measure2 >= 0.2)
 							lessThan30MatchingAverage++;
-						if (measure < 0.4 && measure >= 0.3)
+						if (measure2 < 0.4 && measure2 >= 0.3)
 							lessThan40MatchingAverage++;
-						if (measure < 0.5 && measure >= 0.4)
+						if (measure2 < 0.5 && measure2 >= 0.4)
 							lessThan50MatchingAverage++;
-						if (measure < 0.6 && measure >= 0.5)
+						if (measure2 < 0.6 && measure2 >= 0.5)
 							lessThan60MatchingAverage++;
-						if (measure < 0.7 && measure >= 0.6)
+						if (measure2 < 0.7 && measure2 >= 0.6)
 							lessThan70MatchingAverage++;
-						if (measure < 0.8 && measure >= 0.7)
+						if (measure2 < 0.8 && measure2 >= 0.7)
 							lessThan80MatchingAverage++;
-						if (measure < 0.9 && measure >= 0.8)
+						if (measure2 < 0.9 && measure2 >= 0.8)
 							lessThan90MatchingAverage++;
-						if (measure < 1 && measure >= 0.9)
+						if (measure2 < 1 && measure2 >= 0.9)
 							lessThan100MatchingAverage++;
-						if (measure == 1)
+						if (measure2 == 1)
 							equal100MatchingAverage++;
-						
-						//if (((++counter)%100000)==0)
-						//{
-						
-							/*System.out.println("zeroMatchingAverage: " + zeroMatchingAverage + "\n" +
-							"lessThan10MatchingAverage: " + lessThan10MatchingAverage + "\n" + 
-							"lessThan20MatchingAverage: " +  lessThan20MatchingAverage + "\n" +
-							"lessThan30MatchingAverage: " +  lessThan30MatchingAverage + "\n" +
-							"lessThan40MatchingAverage: " +  lessThan40MatchingAverage + "\n" +
-							"lessThan50MatchingAverage: " +  lessThan50MatchingAverage + "\n" +
-							"lessThan60MatchingAverage: " +  lessThan60MatchingAverage + "\n" +
-							"lessThan70MatchingAverage: " +  lessThan70MatchingAverage + "\n" +
-							"lessThan80MatchingAverage: " +  lessThan80MatchingAverage + "\n" +
-							"lessThan90MatchingAverage: " +  lessThan90MatchingAverage + "\n" +
-							"lessThan100MatchingAverage: " + lessThan100MatchingAverage + "\n" +
-							"equal100MatchingAverage: " + equal100MatchingAverage);*/
-						//}
 					}
-					
 				}
 				
-				//System.out.flush();
-				fileWriter.flush();
-				
+				//if (counter%1000==0)
+				//{
+					/*System.out.println("zeroMatchingAverage: " + zeroMatchingAverage + "\n" +
+					"lessThan10MatchingAverage: " + lessThan10MatchingAverage + "\n" + 
+					"lessThan20MatchingAverage: " +  lessThan20MatchingAverage + "\n" +
+					"lessThan30MatchingAverage: " +  lessThan30MatchingAverage + "\n" +
+					"lessThan40MatchingAverage: " +  lessThan40MatchingAverage + "\n" +
+					"lessThan50MatchingAverage: " +  lessThan50MatchingAverage + "\n" +
+					"lessThan60MatchingAverage: " +  lessThan60MatchingAverage + "\n" +
+					"lessThan70MatchingAverage: " +  lessThan70MatchingAverage + "\n" +
+					"lessThan80MatchingAverage: " +  lessThan80MatchingAverage + "\n" +
+					"lessThan90MatchingAverage: " +  lessThan90MatchingAverage + "\n" +
+					"lessThan100MatchingAverage: " + lessThan100MatchingAverage + "\n" +
+					"equal100MatchingAverage: " + equal100MatchingAverage);*/
+					//System.out.println("Number of WordNet word analyzed: " + counter);
+				//}
+				//counter++;
 			}
 			
-			fileWriter.close();
+			statisticWirter.write("Statistics:\n");
+			statisticWirter.write("zeroMatchingAverage, " + zeroMatchingAverage + "\n" +
+					"lessThan10MatchingAverage, " + lessThan10MatchingAverage + "\n" + 
+					"lessThan20MatchingAverage, " +  lessThan20MatchingAverage + "\n" +
+					"lessThan30MatchingAverage, " +  lessThan30MatchingAverage + "\n" +
+					"lessThan40MatchingAverage, " +  lessThan40MatchingAverage + "\n" +
+					"lessThan50MatchingAverage, " +  lessThan50MatchingAverage + "\n" +
+					"lessThan60MatchingAverage, " +  lessThan60MatchingAverage + "\n" +
+					"lessThan70MatchingAverage, " +  lessThan70MatchingAverage + "\n" +
+					"lessThan80MatchingAverage, " +  lessThan80MatchingAverage + "\n" +
+					"lessThan90MatchingAverage, " +  lessThan90MatchingAverage + "\n" +
+					"lessThan100MatchingAverage, " + lessThan100MatchingAverage + "\n" +
+					"equal100MatchingAverage, " + equal100MatchingAverage + "\n");
+			
+			statisticWirter.write("Execution Time: " + ((System.currentTimeMillis() - startTime)/1000) + "[s]\n");
+			
+			//fileWriter.close();
+			statisticWirter.flush();
+			statisticWirter.close();
 		}
 		catch (Exception ex)
 		{
 			ex.printStackTrace();
 		}
-		
 	}
 	
 	static double computeSimilarity(Vector<String> v1, Vector<String> v2)
@@ -210,7 +222,7 @@ public class Matcher
 			for (String s2:v2)
 			{
 				double similarity = compareMultiWords(s1, regex1, s2, regex2);
-				if (similarity == 1) 
+				if (similarity == JaccardThreshold) 
 					equalCount++;
 			}
 		}
@@ -227,37 +239,57 @@ public class Matcher
 		String[] words1 = s1.split(regex1);
 		String[] words2 = s2.split(regex2); 
 		
-		int counter = 0;
-		int adjustingVar = 0;
-		//System.out.println(words1.length + " " + words2.length);
 		
-		for (int i = 0; i < words1.length; i++)
+		if ((words1.length > 1) || (words2.length > 1))
 		{
-			if (!isStopWord(words1[i]))
+			int match = 0;
+			int stopWordCounter1 = 0;
+			int stopWordCounter2 = 0;
+			//System.out.println(words1.length + " " + words2.length);
+			
+			
+			for (int i = 0; i < words1.length; i++)
+			{
+				if (isStopWord(words1[i]))
+					stopWordCounter1++;
+			}
+			
+			for (int i = 0; i < words2.length; i++)
+			{
+				if (isStopWord(words2[i]))
+					stopWordCounter2++;
+			}
+			
+			for (int i = 0; i < words1.length; i++)
 			{
 				for (int j = 0; j < words2.length; j++)
 				{
-					if (!isStopWord(words1[i]))
+					if (!(isStopWord(words1[i]) || isStopWord(words2[j])))
 					{
 						if (words1[i].compareToIgnoreCase(words2[j])==0)
-							counter++;
+							match++;
 					}
-					else
-						adjustingVar++;
 				}
 			}
-			else
-				adjustingVar++;
+			return (double)(((double)match)/(double)(words1.length + words2.length - stopWordCounter1 - stopWordCounter2 - match));
 		}
+		else
+			return s1.compareToIgnoreCase(s2) == 0 ? 1.0 :0.0; //Exact string matching
+		 
 		
-		return (double)(2*((double)counter/(words1.length + words2.length - adjustingVar)));
+		
+		
+			
+			
 	}
 	
 	static boolean isStopWord(String word)
 	{
 		if (word.compareToIgnoreCase("of") == 0 || 
 				word.compareToIgnoreCase("the") == 0 ||
-				word.compareToIgnoreCase("a") == 0)
+				word.compareToIgnoreCase("a") == 0 ||
+				word.compareToIgnoreCase("and") == 0 || 
+				word.compareToIgnoreCase("for") == 0)
 			return true;
 		else
 			return false;
