@@ -57,8 +57,8 @@ public class AdvancedMatcher
 	static double firstThreshold = 1.0;
 	static double JaccardThreshold = 1.0;
 	
-	static String file1 = "export/WordNetWordLexicalChainsOfHypernims_level_0.obj";
-	static String file2 = "export/DBpediaClassNameLexicalChainsOfSuperClasses_level_0.obj";
+	//static String file1 = "export/WordNetWordLexicalChainsOfHypernims_level_0.obj";
+	//static String file2 = "export/DBpediaClassNameLexicalChainsOfSuperClasses_level_0.obj";
 	
 	static String wordnetIndexObjFileName = "export/indexes/WordNetWIDIndex.obj";
 	static String dbpediaIndexObjFileName = "export/indexes/DBpediaClassesIndex.obj";
@@ -92,7 +92,7 @@ public class AdvancedMatcher
 			
 			ObjectInputStream dbpediaIndexFileStream = new ObjectInputStream(new FileInputStream(new File(dbpediaIndexObjFileName)));
 			classesMap = (TreeMap<String, Integer>)dbpediaIndexFileStream.readObject();
-			//dbpediaIndexFileStream.close();
+			dbpediaIndexFileStream.close();
 			
 			// Create lexical chains map for WordNet
 			System.out.println("Create lexical chains map for WordNet" + ". " + (System.currentTimeMillis() - startTime)/1000 + " [s]");
@@ -109,7 +109,7 @@ public class AdvancedMatcher
 					IWord word = jwiwrapper.dictionary.getWord(wid);
 					Vector<String> v = new Vector<String>();
 					
-					exploreWord(word.getSynset(), Pointer.HYPERNYM, 0, v);
+					exploreWord(word.getSynset(), Pointer.HYPERNYM, 1, v);
 					try
 					{
 						wordNetLexicalChainsMap.put(widMap.get(word.getID().toString()), v);
@@ -132,7 +132,7 @@ public class AdvancedMatcher
 			{
 				OntClass c = classesIter.next();
 				Vector<String> v = new Vector<String>();
-				exploreSuperClasses(c, 0, v);
+				exploreSuperClasses(c, 1, v);
 				DBpediaLexicalChainsMap.put(classesMap.get(c.toString()), v);
 			}
 			
@@ -141,7 +141,7 @@ public class AdvancedMatcher
 			System.out.println("Start matching phase... "  + (System.currentTimeMillis() - startTime)/1000 + " [s]");
 			
 			// Open alignment writer
-			FileWriter alignmentsWriter = new FileWriter("export/alignments/alignmentV0.0.csv");
+			FileWriter alignmentsWriter = new FileWriter("export/alignments/alignmentV0.1.csv");
 			
 			alignmentsWriter.write("word_id,class_id,stringSim,semanticSim\n");
 			//alignmentsWriter.write("#Matching results for " + file1 + " matched to " + file2 + ". Threshold: " + firstThreshold + ":" + JaccardThreshold + "\n");
@@ -172,8 +172,8 @@ public class AdvancedMatcher
 						
 						// Perform matching
 						
-						String indexStr1 = v1.get(0);
-						String indexStr2 = v2.get(0);
+						String indexStr1 = word.getLemma();
+						String indexStr2 = c.getLocalName();
 						
 						v1.trimToSize();
 						v2.trimToSize();
@@ -210,7 +210,7 @@ public class AdvancedMatcher
 		int equalCount = 0;
 		
 		// Jaccard similarity
-		int counter = 0;
+		//int counter = 0;
 		
 		for (String s1:v1)
 		{
@@ -293,7 +293,7 @@ public class AdvancedMatcher
 		{
 			//System.out.println("Start of level: " + (Integer.MAX_VALUE - level) + " Synset: " + synset.getWords());
 			
-			ArrayList<String> arrayList = getArrayList(synset);
+			ArrayList<String> arrayList = getArrayList(synset); //Get the synonims ring
 			if (!v.containsAll(arrayList))
 				v.addAll(arrayList);
 			
@@ -319,6 +319,12 @@ public class AdvancedMatcher
 			}
 			//System.out.println("End of Level " + (Integer.MAX_VALUE - level));
 		}
+	}
+	
+	static void exploreHyperHypo(ISynset synset, int level, Vector<String> v)
+	{
+		exploreWord(synset, Pointer.HYPERNYM, level, v);
+		exploreWord(synset, Pointer.HYPONYM, level, v);
 	}
 	
 	static void exploreSuperClasses(OntClass c, int level, Vector<String> v)

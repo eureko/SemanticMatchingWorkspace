@@ -9,13 +9,16 @@ import java.util.Vector;
 import edu.mit.jwi.item.IIndexWord;
 import edu.mit.jwi.item.ISenseEntry;
 import edu.mit.jwi.item.ISynset;
+import edu.mit.jwi.item.ISynsetID;
 import edu.mit.jwi.item.IWord;
 import edu.mit.jwi.item.IWordID;
 import edu.mit.jwi.item.POS;
+import edu.mit.jwi.item.Pointer;
 
 public class WordNetAnalyzer 
 {
 	static JWIWrapper jwiwrapper;
+	public static int synsetLevel = 0;
 	
 	public static void main(String[] args) 
 	{
@@ -67,11 +70,12 @@ public class WordNetAnalyzer
 				IIndexWord indexWord = adverbIterator.next();
 				List<IWordID> wordIDs = indexWord.getWordIDs();
 				
+				System.out.println(indexWord.getLemma() + ": " + indexWord.getTagSenseCount());
 				adverb_index_counter++;
 				
 				for (IWordID wid : wordIDs)
 				{
-					//IWord word = jwiwrapper.dictionary.getWord(wid);
+					IWord word = jwiwrapper.dictionary.getWord(wid);
 					adverb_counter++;
 				}
 			}
@@ -111,7 +115,11 @@ public class WordNetAnalyzer
 			int noun_synset_count = 0;
 			while (nounISynsetIter.hasNext())
 			{
-				nounISynsetIter.next();
+				ISynset synset = nounISynsetIter.next();
+				
+				
+				
+				
 				noun_synset_count++;
 			}
 			
@@ -164,4 +172,8 @@ public class WordNetAnalyzer
 			
 		}
 	}
+	
+	
+	
+	
 }

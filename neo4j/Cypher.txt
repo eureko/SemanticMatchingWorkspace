@@ -1,8 +1,31 @@
-USING PERIODIC COMMIT 1000
-LOAD CSV WITH HEADERS FROM "file:/Users/caldarola/git/SemanticMatchingWorkspace/WordNet_WordSenses_V1.csv" AS csvLine
-CREATE (c: Concept { id: toInt(csvLine.id), wid: csvLine.WID, word: csvLine.word, gloss: csvLine.gloss })
+id,SID,POS,level,words,gloss
 
-CREATE CONSTRAINT ON (c: Concept) ASSERT c.id IS UNIQUE
+USING PERIODIC COMMIT 1000
+LOAD CSV WITH HEADERS FROM "file:C:/Users/caldarola/git/SemanticMatchingWorkspace/WordNet_Synset_V2.csv" AS csvLine
+CREATE (s: Synset { id: toInt(csvLine.id), sid: csvLine.SID, type: csvLine.type, POS: csvLine.POS, level: toInt(csvLine.level), dim: toInt(csvLine.dimension), words: csvLine.words, label: csvLine.label })
+
+CREATE CONSTRAINT ON (s: Synset) ASSERT s.id IS UNIQUE
+
+USING PERIODIC COMMIT 1000
+LOAD CSV WITH HEADERS FROM "file:C:/Users/caldarola/git/SemanticMatchingWorkspace/WordNet_Prop_V1.csv" AS csvLine
+MATCH (src:Synset { id: toInt(csvLine.Src)}), (dest:Synset { id: toInt(csvLine.Dest)})
+CREATE (src)-[:semantic_property  { type: csvLine.Prop }]->(dest)
+
+
+id,Sid,WID,POS,polysemy,frequency,word,gloss
+
+USING PERIODIC COMMIT 1000
+LOAD CSV WITH HEADERS FROM "file:/Users/caldarola/git/SemanticMatchingWorkspace/WordNet_WordSenses_V2.csv" AS csvLine
+CREATE (c: WordSense { id: toInt(csvLine.id), sid: toInt(csvLine.Sid), wid: csvLine.WID, type:  csvLine.type, POS: csvLine.POS, polysemy: toInt(csvLine.polysemy), frequency: toInt(csvLine.frequency), dim: toInt(csvLine.dimension), label: csvLine.label})
+
+
+CREATE CONSTRAINT ON (c: WordSense) ASSERT c.id IS UNIQUE
+
+USING PERIODIC COMMIT 1000
+LOAD CSV WITH HEADERS FROM "file:/Users/caldarola/git/SemanticMatchingWorkspace/WordNet_SemSyn_V1.csv" AS csvLine
+MATCH (src: WordSense { id: toInt(csvLine.Src)}), (dest: Synset { id: toInt(csvLine.Dest)})
+CREATE (src)-[:s]->(dest)
+
 
 USING PERIODIC COMMIT 1000
 LOAD CSV WITH HEADERS FROM "file:/Users/caldarola/git/SemanticMatchingWorkspace/WordNet_Prop_V1.csv" AS csvLine
@@ -24,6 +47,57 @@ CREATE (src)-[:property  { type: csvLine.Prop }]->(dest)
 USING PERIODIC COMMIT 1000
 LOAD CSV WITH HEADERS FROM "file:/Users/caldarola/git/SemanticMatchingWorkspace/export/alignments/alignmentV0.0.csv" AS csvLine
 MATCH (src:Concept { id: toInt(csvLine.word_id)}), (dest:DBpediaClass { id: toInt(csvLine.class_id)})
-CREATE (src)-[:matching  { stringSim: csvLine.semanticSim }]->(dest)
+CREATE (src)-[:similarity  { str: toFloat(csvLine.stringSim), sem: toFloat(csvLine.semanticSim) }]->(dest)
 
 
+USING PERIODIC COMMIT 1000
+LOAD CSV WITH HEADERS FROM "file:/Users/caldarola/git/SemanticMatchingWorkspace/export/alignments/alignmentV1.0.csv" AS csvLine
+MATCH (src:Synset { id: toInt(csvLine.SynsetId)}), (dest:DBpediaClass { id: toInt(csvLine.classId)})
+CREATE (src)-[:match  { frequency: toInt(csvLine.frequency)}]->(dest)
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%55
+
+MATCH (w: Concept)-[r]-(c: DBpediaClass) DELETE r
+
+MATCH (w: Concept)-[r]-(c: DBpediaClass) RETURN w,r,c LIMIT 200
+
+MATCH (w: Concept)-[r: similarity {str:'1.0'}]-(c: DBpediaClass) RETURN r LIMIT 50
+
+MATCH (w: Concept {word:'book'})-[r: similarity {str:1.0}]-(c: DBpediaClass) RETURN r
+
+MATCH (w: Concept)-[r: similarity ]-(c: DBpediaClass) WHERE r.sem > 0.5 AND r.str = 1.0  RETURN r LIMIT 100
+
+MATCH (a: Concept)<-[s: semantic_property {type:'Hypernym'}]-(b: Concept {word:'book'})-[r: similarity]-(c: DBpediaClass)-[p: property {type:'subClassOf'}]->(d: DBpediaClass) RETURN a,b,c,d,s,r,p
+
+
+MATCH (w: WordSense {word: 'book'})-[r]->(s: Synset) RETURN w,r,s LIMIT 100
+
+MATCH (a: WordSense {word: 'book'})-[r]->(b: Synset)-[s: semantic_property {type: 'Hypernym'}]->(c: Synset) RETURN a,r,b,s,c LIMIT 100
+
+MATCH (a: WordSense)-[r]->(b: Synset)-[s: semantic_property {type: 'Hypernym'}]->(c: Synset {words: '{entity}'})<-[t]-(d: WordSense) RETURN a,r,b,s,c,d LIMIT 100
+
+MATCH (w: WordSense {POS: 'NOUN', polysemy: 30}) RETURN w LIMIT 100
+
+MATCH (w: WordSense {POS: 'NOUN'}) RETURN max(w.polysemy)
+
+MATCH (a: WordSense {label: 'book'})-[r]->(b: Synset)<-[s]-(c: WordSense) return a,r,b,s,c limit 100
+
+MATCH (a: WordSense)-[r]->(b: Synset)-[t: semantic_property]->(f: Synset)<-[s]-(c: WordSense) return a,r,b,t,f,s,c limit 100
+MATCH (a: WordSense {label: 'State'})-[r]->(b: Synset)-[t: semantic_property]->(f: Synset)<-[s]-(c: WordSense) return a,r,b,t,f,s,c limit 100
+
+MATCH (a: WordSense {label: 'Europe'})-[r]->(b: Synset)-[t: semantic_property*0..2]->(f: Synset)<-[s]-(c: WordSense) return a,r,b,t,f,s,c limit 100
+
+MATCH (s: Synset)-[r: semantic_property]-(t: Synset) RETURN s,r,t LIMIT 100
+
+match (a: Synset {POS: 'NOUN'})<-[r]-(c: WordSense) where (a)<-[]-(: WordSense {label: 'home'}) return a,r,c limit 100
+
+match (a: WordSense {POS: 'NOUN', label: 'home'})-[r]->(c: Synset) return a,r,c
+
+match (a: WordSense {POS: 'NOUN'})-[r]->(c: Synset) where (c)<-[]-(: WordSense {label: 'home'}) return a,r,c
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%55
+
+match (s: Synset)-[:match ]->(c: DBpediaClass {localName: 'Place'}) return s,c limit 100
