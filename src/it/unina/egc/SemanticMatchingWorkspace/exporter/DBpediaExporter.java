@@ -21,7 +21,7 @@ import org.apache.jena.util.iterator.ExtendedIterator;
 
 public class DBpediaExporter 
 {
-	static final String  DBpediaTBOXFile = "../Resources/DBpedia/dbpedia_2014.owl";
+	static final String  DBpediaTBOXFile = "../Resources/DBpedia/dbpedia_2015-04.owl";
 	static TreeMap<String, Integer> classesMap = new TreeMap<String, Integer>();
 	
 	static String objFileName = "export/indexes/DBpediaClassesIndex.obj";
@@ -32,7 +32,7 @@ public class DBpediaExporter
 		try
 		{
 			// Exporting namedClasses
-			FileWriter fileWriterClasses = new FileWriter("DBpedia_namedClasses_V1.csv");
+			FileWriter fileWriterClasses = new FileWriter("DBpedia_namedClasses_V2.csv");
 			fileWriterClasses.write ("id,URI,localName,comment\n");		
 			
 			int namedClassId = 0;

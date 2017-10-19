@@ -2,11 +2,17 @@ package it.unina.egc.SemanticMatchingWorkspace.core;
 
 import it.unina.egc.SemanticMatchingWorkspace.utils.JWIWrapper;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.InputStream;
+import java.io.ObjectInputStream;
 import java.util.Iterator;
 import java.util.List;
 import java.util.TreeMap;
+import java.util.Vector;
 
 import org.apache.jena.ontology.OntClass;
 import org.apache.jena.ontology.OntModel;
@@ -20,18 +26,20 @@ import edu.mit.jwi.item.ISynset;
 import edu.mit.jwi.item.IWord;
 import edu.mit.jwi.item.POS;
 
-public class AdvancedMatcherV2 
+public class AdvancedMatcherOther 
 {
 	
-	static final String  DBpediaTBOXFile = "../Resources/DBpedia/dbpedia_2014.owl";
+	static final String  DBpediaResourceFile = "./short-abstracts_en.ttl";
 	
 	static JWIWrapper jwiwrapper;	
 	
 	static TreeMap<String, Integer> sidMap = new TreeMap<String, Integer>();
-	static TreeMap<String, Integer> classesMap = new TreeMap<String, Integer>();
+	static TreeMap<String, Integer> resourceMap = new TreeMap<String, Integer>();
 	
 	static final String regex1 = "[_\\s]";
 	static final String regex2 = "(?<!^)(?=[A-Z])";	
+	
+	static Vector<String> stopWordListVector;
 	
 	public static void main(String[] args) 
 	{
@@ -40,12 +48,22 @@ public class AdvancedMatcherV2
 			// Get all synsets from WordNet
 			jwiwrapper = new JWIWrapper();
 			
+			//Read from serialized files
+			ObjectInputStream ois = new ObjectInputStream(                                 
+			        new FileInputStream(new File("stop-word-list.obj")));
+			
+			stopWordListVector = (Vector<String>) ois.readObject();
+			
 			//Exporting synset nodes
 			//POS[] pos_values = POS.values();
 			int id = 0;
 				
 			//for (POS pos:pos_values)
 			//{
+				
+			BufferedReader br = new BufferedReader(new FileReader(DBpediaResourceFile));
+		    String line;
+		    
 				Iterator<ISynset> synsetIterator = jwiwrapper.dictionary.getSynsetIterator(POS.NOUN);
 				
 				while(synsetIterator.hasNext()) 
@@ -53,67 +71,64 @@ public class AdvancedMatcherV2
 					ISynset synset = synsetIterator.next();
 					sidMap.put(synset.getID().toString(), id);
 					id++;
+					
+					int c = 0;
+					
+					br.readLine(); //skip comment
+					
+					 while (((line = br.readLine()) != null)) 
+					 {
+					        
+						String stm1 = line.substring(line.indexOf('<'), line.indexOf('>') + 1);
+						String stm2 =  line.substring(line.lastIndexOf('>') + 1, line.length());
+						
+						
+						 
+						// String[] statement = line.split("(?=(([^'\"]*['\"]){2})*[^'\"]*$)");
+					       // System.out.println(statement[0]);
+					       // System.out.println(statement[1]);
+					       // System.out.println(statement[2]);
+					        
+					      stm2 =  stm2.replaceAll("\"", "");
+					      stm2 =  stm2.replace("\\", "");
+						
+						double measure = compareMultiWords(synset.getGloss(), "\\s", stm2, "\\s");
+					        
+					      if (measure > 0)
+					       {   
+						        System.out.println(synset + " --> " + synset.getGloss());
+						        System.out.println(stm1 + " --> " + stm2);
+						        System.out.println("Measure: " + measure);
+						        System.out.println("__________________________________");
+					       }
+					       
+					       //c++;
+					       //System.out.println(c);
+					 }
+					 
+					
+					 
+					 System.out.println("reset");
+					
+					
+					
 				}
 			//}
 			
-			// Get all DBpedia TBOX classes
+			// Get all DBpedia resources
 			
 			// Exporting namedClasses
 			
-			int namedClassId = 0;
-			OntModel ontoModel = getOntologyModel(DBpediaTBOXFile);
-			ontoModel.setStrictMode(false);
-			ExtendedIterator<OntClass> classesIter = ontoModel.listNamedClasses();
 			
-			while(classesIter.hasNext())
-			{
-				OntClass c = classesIter.next();
-				classesMap.put(c.toString(), namedClassId);
-				namedClassId++;
-			}
+		   
+		   
+			
+		    br.close();
+			
 			
 			//Matching phase
 			
-			FileWriter alignmentsWriter = new FileWriter("export/alignments/alignmentV1.0.csv");
-			alignmentsWriter.write("SynsetId,frequency,classId\n");
 			
-			Iterator<ISynset> synsetIterator2 = jwiwrapper.dictionary.getSynsetIterator(POS.NOUN);
-			
-			while(synsetIterator2.hasNext())
-			{
-				ISynset synset = synsetIterator2.next(); 
-				List<IWord> words = synset.getWords();
-				
-				for (IWord w:words)
-				{
-					String wordLemma = w.getLemma();
-					
-					Iterator<String> classIter = classesMap.keySet().iterator();
-					
-					while(classIter.hasNext())
-					{
-						String classURI = classIter.next();
-						OntClass c = ontoModel.getOntClass(classURI);
-						
-						String classLocalName = c.getLocalName();
-						
-						double measure1 = compareMultiWords(wordLemma, regex1, classLocalName, regex2);
-						
-						if (measure1 == 1.0)
-						{
-							System.out.println(synset.toString() + "<>" + c.toString());
-							
-							alignmentsWriter.write(
-									sidMap.get(synset.getID().toString()) + "," +
-									(getFrequencyRank(w) + 1) + "," + 
-									classesMap.get(classURI) + "\n");
-						}
-					}
-				}
-			}
-			
-			alignmentsWriter.flush();
-			alignmentsWriter.close();
 		}
 		catch(Exception ex)
 		{
@@ -188,13 +203,51 @@ public class AdvancedMatcherV2
 			return s1.compareToIgnoreCase(s2) == 0 ? 1.0 :0.0; //Exact string matching
 	}
 	
-	static boolean isStopWord(String word)
+	
+	static int contCommonWordNumber(String s1, String regex1, String s2, String regex2)
+	{
+		String[] words1 = s1.split(regex1);
+		String[] words2 = s2.split(regex2); 
+		
+		
+		int match = 0;
+		
+		
+		for (int i = 0; i < words1.length; i++)
+		{
+			for (int j = 0; j < words2.length; j++)
+			{
+				if (!(isStopWord(words1[i]) || isStopWord(words2[j])))
+				{
+					if (words1[i].compareToIgnoreCase(words2[j])==0)
+						match++;
+				}
+			}
+		}
+		
+		return match;
+	}
+	
+	
+	/*static boolean isStopWord(String word)
 	{
 		if (word.compareToIgnoreCase("of") == 0 || 
 				word.compareToIgnoreCase("the") == 0 ||
 				word.compareToIgnoreCase("a") == 0 ||
 				word.compareToIgnoreCase("and") == 0 || 
-				word.compareToIgnoreCase("for") == 0)
+				word.compareToIgnoreCase("for") == 0 ||
+				word.compareToIgnoreCase("is") == 0 ||
+				word.compareToIgnoreCase("that") == 0 ||
+				word.compareToIgnoreCase("or") == 0)
+ 				
+			return true;
+		else
+			return false;
+	}*/
+	
+	static boolean isStopWord(String word)
+	{
+		if (stopWordListVector.contains(word)) 				
 			return true;
 		else
 			return false;
@@ -213,5 +266,23 @@ public class AdvancedMatcherV2
 			i++;
 		}
 		return rank;
+	}
+	
+	static double compareText(String s1, String s2)
+	{
+		String[] words1 = s1.split("\\s");
+		String[] words2 = s2.split("\\s");
+		int counter = 0;
+		
+		for (int i = 0; i < words1.length; i++)
+		{
+			for (int j = 0; j < words2.length; j++)
+			{
+				if (words1[i].compareToIgnoreCase(words2[j]) == 0)
+					counter++;
+			}
+		}
+		
+		return (double)((double)counter/(double)(words1.length + words2.length));
 	}
 }

@@ -1,13 +1,13 @@
 id,SID,POS,level,words,gloss
 
 USING PERIODIC COMMIT 1000
-LOAD CSV WITH HEADERS FROM "file:C:/Users/caldarola/git/SemanticMatchingWorkspace/WordNet_Synset_V2.csv" AS csvLine
+LOAD CSV WITH HEADERS FROM "file:/Users/caldarola/git/SemanticMatchingWorkspace/WordNet_Synset_V2.csv" AS csvLine
 CREATE (s: Synset { id: toInt(csvLine.id), sid: csvLine.SID, type: csvLine.type, POS: csvLine.POS, level: toInt(csvLine.level), dim: toInt(csvLine.dimension), words: csvLine.words, label: csvLine.label })
 
 CREATE CONSTRAINT ON (s: Synset) ASSERT s.id IS UNIQUE
 
 USING PERIODIC COMMIT 1000
-LOAD CSV WITH HEADERS FROM "file:C:/Users/caldarola/git/SemanticMatchingWorkspace/WordNet_Prop_V1.csv" AS csvLine
+LOAD CSV WITH HEADERS FROM "file:/Users/caldarola/git/SemanticMatchingWorkspace/WordNet_Prop_V1.csv" AS csvLine
 MATCH (src:Synset { id: toInt(csvLine.Src)}), (dest:Synset { id: toInt(csvLine.Dest)})
 CREATE (src)-[:semantic_property  { type: csvLine.Prop }]->(dest)
 
@@ -55,6 +55,10 @@ LOAD CSV WITH HEADERS FROM "file:/Users/caldarola/git/SemanticMatchingWorkspace/
 MATCH (src:Synset { id: toInt(csvLine.SynsetId)}), (dest:DBpediaClass { id: toInt(csvLine.classId)})
 CREATE (src)-[:match  { frequency: toInt(csvLine.frequency)}]->(dest)
 
+USING PERIODIC COMMIT 1000
+LOAD CSV FROM "file:/Users/caldarola/git/SemanticMatchingWorkspace/strs_aligns.csv" AS line
+MATCH (src: Synset { id: toInt(line[1])}), (dest: DBpediaClass { id: toInt(line[2])})
+CREATE (src)-[:measure  { ratio: toInt(line[3]), partial: toInt(line[4]), token_sort: toInt(line[5]), token_set: toInt(line[6])}]->(dest)
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%55
@@ -97,7 +101,15 @@ match (a: WordSense {POS: 'NOUN', label: 'home'})-[r]->(c: Synset) return a,r,c
 
 match (a: WordSense {POS: 'NOUN'})-[r]->(c: Synset) where (c)<-[]-(: WordSense {label: 'home'}) return a,r,c
 
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%55
 
 match (s: Synset)-[:match ]->(c: DBpediaClass {localName: 'Place'}) return s,c limit 100
+
+match (s: Synset)-[r: match]->(c: DBpediaClass {localName: 'Place'}) where r.frequency > 1 return s,c limit 100
+
+MATCH (s)-[r:match]->(d) where (d.comment <> "no comment" AND r.frequency = 1) RETURN r LIMIT 100
+MATCH (s)-[r:match]->(d) where (d.comment <> "no comment" AND r.frequency = 1) RETURN s.label, d.comment
+
+MATCH (d: DBpediaClass) where (d.comment <> "no comment") RETURN count(d)
+
+match (s: Synset)-[r: measure]->(c: DBpediaClass) return s.words, s.label, r.ratio, r.partial, r.token_sort, r.token_set, c.localName, c.comment order by r.partial DESC

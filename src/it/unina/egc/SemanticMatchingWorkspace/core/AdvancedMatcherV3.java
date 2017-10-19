@@ -20,10 +20,10 @@ import edu.mit.jwi.item.ISynset;
 import edu.mit.jwi.item.IWord;
 import edu.mit.jwi.item.POS;
 
-public class AdvancedMatcherV2 
+public class AdvancedMatcherV3 
 {
 	
-	static final String  DBpediaTBOXFile = "../Resources/DBpedia/dbpedia_2014.owl";
+	static final String  DBpediaTBOXFile = "../Resources/DBpedia/dbpedia_2015-04.owl";
 	
 	static JWIWrapper jwiwrapper;	
 	
@@ -74,8 +74,8 @@ public class AdvancedMatcherV2
 			
 			//Matching phase
 			
-			FileWriter alignmentsWriter = new FileWriter("export/alignments/alignmentV1.0.csv");
-			alignmentsWriter.write("SynsetId,frequency,classId\n");
+			FileWriter alignmentsWriter = new FileWriter("export/alignments/alignmentV1.1.csv");
+			alignmentsWriter.write("SynsetId,frequency,classId,synsetGloss,classComment\n");
 			
 			Iterator<ISynset> synsetIterator2 = jwiwrapper.dictionary.getSynsetIterator(POS.NOUN);
 			
@@ -95,6 +95,9 @@ public class AdvancedMatcherV2
 						String classURI = classIter.next();
 						OntClass c = ontoModel.getOntClass(classURI);
 						
+						String classComment = c.getComment("EN");
+						
+												
 						String classLocalName = c.getLocalName();
 						
 						double measure1 = compareMultiWords(wordLemma, regex1, classLocalName, regex2);
@@ -150,7 +153,6 @@ public class AdvancedMatcherV2
 	{
 		String[] words1 = s1.split(regex1);
 		String[] words2 = s2.split(regex2); 
-		
 		
 		if ((words1.length > 1) || (words2.length > 1))
 		{
